@@ -1,11 +1,12 @@
 import asyncio
+
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask
-from data import JSONReader
-from hf import HuggingFaceTokenizer, HuggingFaceSAModel
-from transformers import AutoTokenizer
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from hf import HuggingFaceSAModel, HuggingFaceTokenizer
+from js import JSONReader, JSONWriter
 
 
 async def main():
@@ -21,6 +22,8 @@ async def main():
         "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
     )
     hf_model = HuggingFaceSAModel(model)
+
+    json_writer = JSONWriter("sentiment.jsonl")
     runner = PipelineRunner()
     task = PipelineTask(  # noqa
         Pipeline(
@@ -28,6 +31,7 @@ async def main():
                 json_reader,
                 hf_tokenizer,
                 hf_model,
+                json_writer,
             ]
         )
     )

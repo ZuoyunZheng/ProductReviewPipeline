@@ -1,31 +1,17 @@
-from dataclasses import dataclass
+import asyncio
+import random
 from functools import partial
-import numpy as np
 
-import torch
+import numpy as np
+from loguru import logger
 from pipecat.frames.frames import Frame, TextFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-
-@dataclass
-class TensorFrame(Frame):
-    tensor: torch.Tensor
-
-    def __str__(self):
-        return f"{self.name}(pts: {self.pts}, tensor: [{self.tensor}])"
+from frame import SentimentFrame, TokenFrame
 
 
 class HuggingFaceTokenizer(FrameProcessor):
-    """This processor calls the given hugging face tokenizer on text.
-
-    >>> async def print_frames(aggregator, frame):
-    ...     async for frame in aggregator.process_frame(frame):
-    ...         print(frame.text)
-
-    >>> aggregator = HuggingFaceTokenizer(TODO)
-    >>> asyncio.run(print_frames(aggregator, TextFrame("Hello")))
-    HELLO
-    """
+    """This processor calls the given hugging face tokenizer on text."""
 
     def __init__(self, tokenizer):
         super().__init__()
@@ -36,29 +22,25 @@ class HuggingFaceTokenizer(FrameProcessor):
 
         if isinstance(frame, TextFrame):
             try:
+                # Uncomment to see some async behavior
+                await asyncio.sleep(random.random() * 0.005)
                 result = self._tokenizer(frame.text)["input_ids"]
+                if random.random() > 0.9:
+                    raise Exception
             except Exception as e:
-                print(e)
-                # logger.error(f"Tokenizer error {frame.text}")
-                await self.push_frame(frame, direction)
+                logger.error(f"Tokenizer error for {frame.text[:30]}...\n{e}")
+                # await self.push_frame(frame, direction)
             else:
-                print(f"Tokenized {frame.text} into {result}")
-                await self.push_frame(TensorFrame(tensor=result), direction)
+                logger.info(f"Tokenized: {frame.text[:30]}...")
+                await self.push_frame(
+                    TokenFrame(text=frame.text, tensor=result), direction
+                )
         else:
             await self.push_frame(frame, direction)
 
 
 class HuggingFaceSAModel(FrameProcessor):
-    """This processor calls the given hugging face sentiment analysis model on preprocessed text.
-
-    >>> async def print_frames(aggregator, frame):
-    ...     async for frame in aggregator.process_frame(frame):
-    ...         print(frame.text)
-
-    >>> aggregator = HuggingFaceSAProcessor(TODO)
-    >>> asyncio.run(print_frames(aggregator, TextFrame("Hello")))
-    HELLO
-    """
+    """This processor calls the given hugging face sentiment analysis model on preprocessed text."""
 
     def __init__(self, model):
         super().__init__()
@@ -68,11 +50,14 @@ class HuggingFaceSAModel(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
-        if isinstance(frame, TensorFrame):
-            result = self._model(frame.tensor).logits.detach().numpy()
-            print(
-                f"Forward pass result: {[self._labels[np.argmax(r)] for r in result]}"
+        if isinstance(frame, TokenFrame):
+            # Uncomment to see some async behavior
+            await asyncio.sleep(random.random() * 0.005)
+            logits = self._model(frame.tensor).logits.detach().numpy()
+            stmts = [self._labels[np.argmax(lo)] for lo in logits]
+            logger.info(f"Forward pass: {stmts}")
+            await self.push_frame(
+                SentimentFrame(text=frame.text, stmt=stmts), direction
             )
-            await self.push_frame(TensorFrame(tensor=result), direction)
         else:
             await self.push_frame(frame, direction)
