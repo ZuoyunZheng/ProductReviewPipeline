@@ -8,5 +8,5 @@
 ```
 uv run python main.py
 ```
-The pipeline will stop after all inputs are handle. Press Ctrl-c to stop. <br \>
+The pipeline will stop after all inputs are handle. Press Ctrl-c to stop. <br />
 Output is by default in sentiment.jsonl
